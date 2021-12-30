@@ -3,33 +3,9 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/safeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/**
- * @dev Implementation of the {IBEP20} interface.
- *
- * This implementation is agnostic to the way tokens are created. This means
- * that a supply mechanism has to be added in a derived contract using {_mint}.
- * For a generic mechanism see {BEP20PresetMinterPauser}.
- *
- * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-BEP20-supply-mechanisms/226[How
- * to implement supply mechanisms].
- *
- * We have followed general OpenZeppelin guidelines: functions revert instead
- * of returning `false` on failure. This behavior is nonetheless conventional
- * and does not conflict with the expectations of BEP20 applications.
- *
- * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
- * This allows applications to reconstruct the allowance for all accounts just
- * by listening to said events. Other implementations of the EIP may not emit
- * these events, as it isn't required by the specification.
- *
- * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
- * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IBEP20-approve}.
- */
 interface ITokenomics {
     function init(IERC20 _erc20, uint _amount) external;
 }
@@ -307,11 +283,9 @@ contract BEP20 is Context, IERC20, Ownable {
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
-    function getChainId() internal view returns (uint) {
-        uint256 chainId;
-        assembly {chainId := chainid()}
-        return chainId;
-    }
+    /**
+     * @notice Withdraw unexpected tokens sent to the MEXI token contract
+     */
     function inCaseTokensGetStuck(IERC20 _token) external onlyOwner {
 
         uint amount = _token.balanceOf(address(this));

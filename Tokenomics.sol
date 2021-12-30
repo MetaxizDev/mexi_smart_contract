@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Tokenomics is Ownable {
-    uint public timeLock =  3 * 365 days;
+    uint public constant timeLock =  3 * 365 days;
     uint public start = block.timestamp;
     string[] public initMinters = ['initBurn', 'farm', 'stakeBox', 'ecoPartner', 'airdrop', 'pancakeList', '1stCex', '2ndCex', '3rdCex', 'binanceList'];
     string[] public initLockers = ['futureInvester', 'team', 'marketing'];
@@ -19,11 +19,11 @@ contract Tokenomics is Ownable {
         bool flag;
         for(uint i = 0; i < initLockers.length; i++) {
             if(lockerAddress[initLockers[i]] == _msgSender()) {
-                flag == true;
+                flag = true;
                 break;
             }
         }
-        require(flag, 'Tokenomics: caller is not the locker');
+        require(flag, 'Tokenomics: caller is not a locker address');
         _;
     }
     event Init (IERC20 _erc20, uint _amount);
@@ -45,8 +45,8 @@ contract Tokenomics is Ownable {
         lockerAddress['team'] = 0xeEbe5416F98eb7c611740dB492B606913990947e;
         lockerAddress['marketing'] = 0x0e0c3240dd07667Ae80E69B77CaCD6Db928B75A5;
     }
-    function init(IERC20 _erc20, uint _amount) public {
-
+    function init(IERC20 _erc20, uint _amount) external {
+        require(_erc20.allowance(_msgSender(), address(this)) >= _amount, 'Tokenomics: Allow erc20 first');
         for(uint i = 0; i < initMintersPercent.length; i++){
             uint _total = _amount * initMintersPercent[i] / 1000;
             _erc20.transferFrom(_msgSender(), minterAddress[initMinters[i]], _total);
@@ -58,27 +58,21 @@ contract Tokenomics is Ownable {
         }
         emit Init(_erc20, _amount);
     }
-    function unlock(IERC20 _erc20) public onlyLocker{
+    function unlock(IERC20 _erc20) external onlyLocker{
         require(block.timestamp - start >= timeLock, 'Tokenomics: no meet lock time');
         _erc20.transfer(_msgSender(), lockerAmount[_msgSender()]);
         emit Unlock(_erc20, _msgSender());
     }
-    function getInitLockers() public view returns(string[] memory){
+    function getInitLockers() external view returns(string[] memory){
         return initLockers;
     }
-    function getInitLockersPercent() public view returns(uint[] memory){
+    function getInitLockersPercent() external view returns(uint[] memory){
         return initLockersPercent;
     }
-    function getInitMinters() public view returns(string[] memory){
+    function getInitMinters() external view returns(string[] memory){
         return initMinters;
     }
-    function getInitMintersPercent() public view returns(uint[] memory){
+    function getInitMintersPercent() external view returns(uint[] memory){
         return initMintersPercent;
-    }
-
-    function getChainId() internal view returns (uint) {
-        uint256 chainId;
-        assembly {chainId := chainid()}
-        return chainId;
     }
 }
