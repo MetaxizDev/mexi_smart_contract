@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 
 contract Tokenomics is Ownable {
     uint public constant timeLock =  3 * 365 days;
@@ -13,21 +13,14 @@ contract Tokenomics is Ownable {
     uint[] public initLockersPercent = [60, 70, 70];
     mapping(string => address) public minterAddress;
     mapping(string => address) public lockerAddress;
+    mapping(address => uint) public minterAmount;
     mapping(address => uint) public lockerAmount;
+    mapping(address => bool) public isMinterWithdraw;
+    bool public isInit;
 
-    modifier onlyLocker() {
-        bool flag;
-        for(uint i = 0; i < initLockers.length; i++) {
-            if(lockerAddress[initLockers[i]] == _msgSender()) {
-                flag = true;
-                break;
-            }
-        }
-        require(flag, 'Tokenomics: caller is not a locker address');
-        _;
-    }
-    event Init (IERC20 _erc20, uint _amount);
-    event Unlock(IERC20 _erc20, address _locker);
+    event Init (IBEP20 _erc20, uint _amount);
+    event Unlock(IBEP20 _erc20, address _locker);
+    event Withdraw(address _minter, uint _amount);
 
     constructor() {
         minterAddress['initBurn'] = 0x88723F606b78A2d98dD51d2AE197cd408D850444;
@@ -45,22 +38,34 @@ contract Tokenomics is Ownable {
         lockerAddress['team'] = 0xeEbe5416F98eb7c611740dB492B606913990947e;
         lockerAddress['marketing'] = 0x0e0c3240dd07667Ae80E69B77CaCD6Db928B75A5;
     }
-    function init(IERC20 _erc20, uint _amount) external {
+    function init(IBEP20 _erc20, uint _amount) external {
+        require(!isInit, 'Tokenomics: already init');
         require(_erc20.allowance(_msgSender(), address(this)) >= _amount, 'Tokenomics: Allow erc20 first');
+        _erc20.transferFrom(_msgSender(), address(this), _amount);
         for(uint i = 0; i < initMintersPercent.length; i++){
             uint _total = _amount * initMintersPercent[i] / 1000;
-            _erc20.transferFrom(_msgSender(), minterAddress[initMinters[i]], _total);
+            minterAmount[minterAddress[initMinters[i]]] = _total;
         }
         for(uint i = 0; i < initLockersPercent.length; i++){
             uint _total = _amount * initLockersPercent[i] / 1000;
             lockerAmount[lockerAddress[initLockers[i]]] = _total;
-            _erc20.transferFrom(_msgSender(), address(this), _total);
         }
+        isInit = true;
         emit Init(_erc20, _amount);
     }
-    function unlock(IERC20 _erc20) external onlyLocker{
+    function withdraw(IBEP20 _erc20, string memory _role) external {
+        require(_msgSender() == minterAddress[_role], 'Tokenomics: cant access');
+        require(minterAmount[minterAddress[_role]] > 0, 'Tokenomics: no balance');
+        _erc20.transfer(minterAddress[_role], minterAmount[minterAddress[_role]]);
+        emit Withdraw(_msgSender(), minterAmount[minterAddress[_role]]);
+        minterAmount[minterAddress[_role]] = 0;
+    }
+    function unlock(IBEP20 _erc20, string memory _role) external {
         require(block.timestamp - start >= timeLock, 'Tokenomics: no meet lock time');
+        require(_msgSender() == lockerAddress[_role], 'Tokenomics: cant access');
+        require(lockerAmount[lockerAddress[_role]] > 0, 'Tokenomics: no balance');
         _erc20.transfer(_msgSender(), lockerAmount[_msgSender()]);
+        lockerAmount[lockerAddress[_role]] = 0;
         emit Unlock(_erc20, _msgSender());
     }
     function getInitLockers() external view returns(string[] memory){

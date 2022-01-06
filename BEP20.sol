@@ -4,12 +4,12 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 
 interface ITokenomics {
-    function init(IERC20 _erc20, uint _amount) external;
+    function init(IBEP20 _erc20, uint _amount) external;
 }
-contract BEP20 is Context, IERC20, Ownable {
+contract BEP20 is Context, IBEP20, Ownable {
     using SafeMath for uint256;
     uint constant public MAX_SUPPLY = 300_000_000_000 ether;
     mapping(address => uint256) private _balances;
@@ -21,7 +21,7 @@ contract BEP20 is Context, IERC20, Ownable {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
-
+    event Init (address _tokenomis);
     /**
      * @dev Sets the values for {name} and {symbol}, initializes {decimals} with
      * a default value of 18.
@@ -35,11 +35,12 @@ contract BEP20 is Context, IERC20, Ownable {
         _name = __name;
         _symbol = __symbol;
         _decimals = 18;
+        _mint(address(this), MAX_SUPPLY);
     }
     function init(address _tokenomics) public onlyOwner {
-        _mint(address(this), MAX_SUPPLY);
-        IERC20(this).approve(_tokenomics, MAX_SUPPLY);
-        ITokenomics(_tokenomics).init(IERC20(this), MAX_SUPPLY);
+        require(IBEP20(this).approve(_tokenomics, MAX_SUPPLY));
+        ITokenomics(_tokenomics).init(IBEP20(this), MAX_SUPPLY);
+        emit Init(_tokenomics);
     }
     /**
      * @dev Returns the bep token owner.
@@ -189,10 +190,10 @@ contract BEP20 is Context, IERC20, Ownable {
      *
      * - `msg.sender` must be the token owner
      */
-    function mint(uint256 amount) public onlyOwner returns (bool) {
-        _mint(_msgSender(), amount);
-        return true;
-    }
+//    function mint(uint256 amount) public onlyOwner returns (bool) {
+//        _mint(_msgSender(), amount);
+//        return true;
+//    }
     function burn(uint256 _amount) public {
         _burn(_msgSender(), _amount);
     }
@@ -286,7 +287,7 @@ contract BEP20 is Context, IERC20, Ownable {
     /**
      * @notice Withdraw unexpected tokens sent to the MEXI token contract
      */
-    function inCaseTokensGetStuck(IERC20 _token) external onlyOwner {
+    function inCaseTokensGetStuck(IBEP20 _token) external onlyOwner {
 
         uint amount = _token.balanceOf(address(this));
         _token.transfer(msg.sender, amount);
