@@ -41,7 +41,7 @@ contract Tokenomics is Ownable {
     function init(IBEP20 _erc20, uint _amount) external {
         require(!isInit, 'Tokenomics: already init');
         require(_erc20.allowance(_msgSender(), address(this)) >= _amount, 'Tokenomics: Allow erc20 first');
-        _erc20.transferFrom(_msgSender(), address(this), _amount);
+        require(_erc20.transferFrom(_msgSender(), address(this), _amount));
         for(uint i = 0; i < initMintersPercent.length; i++){
             uint _total = _amount * initMintersPercent[i] / 1000;
             minterAmount[minterAddress[initMinters[i]]] = _total;
@@ -64,7 +64,7 @@ contract Tokenomics is Ownable {
         require(block.timestamp - start >= timeLock, 'Tokenomics: no meet lock time');
         require(_msgSender() == lockerAddress[_role], 'Tokenomics: cant access');
         require(lockerAmount[lockerAddress[_role]] > 0, 'Tokenomics: no balance');
-        _erc20.transfer(_msgSender(), lockerAmount[_msgSender()]);
+        require(_erc20.transfer(_msgSender(), lockerAmount[_msgSender()]));
         lockerAmount[lockerAddress[_role]] = 0;
         emit Unlock(_erc20, _msgSender());
     }
